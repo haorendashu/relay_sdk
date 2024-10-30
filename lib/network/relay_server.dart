@@ -46,6 +46,8 @@ class RelayServer {
             if (onWebSocketMessage != null) {
               onWebSocketMessage!(conn, message);
             }
+          }, onDone: () {
+            connections.remove(conn.id);
           });
 
           if (onWebSocketConnected != null) {
