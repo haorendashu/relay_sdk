@@ -15,6 +15,8 @@ class RelayServer {
 
   Map<String, Connection> connections = {};
 
+  Function(Connection conn)? onWebSocketConnected;
+
   Function(Connection conn, dynamic message)? onWebSocketMessage;
 
   RelayServer({
@@ -45,10 +47,10 @@ class RelayServer {
               onWebSocketMessage!(conn, message);
             }
           });
-          // webSocket.listen((message) {
-          //   print('Received message: $message');
-          //   webSocket.add('Server received your message: $message');
-          // });
+
+          if (onWebSocketConnected != null) {
+            onWebSocketConnected!(conn);
+          }
         });
       } else {
         var response = request.response;

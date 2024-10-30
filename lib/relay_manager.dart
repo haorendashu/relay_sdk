@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'package:nostr_sdk/event.dart';
+import 'package:nostr_sdk/event_kind.dart';
 import 'package:nostr_sdk/relay/relay_info.dart';
+import 'package:nostr_sdk/utils/string_util.dart';
 import 'package:relay_sdk/data/event_sign_check.dart';
 import 'package:relay_sdk/data/relay_db.dart';
 import 'package:relay_sdk/network/connection.dart';
@@ -33,6 +36,7 @@ class RelayManager {
     relayServer = RelayServer(relayInfo: relayInfo);
     relayServer!.port = 4869;
     relayServer!.onWebSocketMessage = onWebSocketMessage;
+    relayServer!.onWebSocketConnected = onWebSocketConnected;
     relayServer!.startServer();
   }
 
@@ -46,11 +50,13 @@ class RelayManager {
           eventSignCheck!.onNostrMessage(conn.id, msgJson);
           return;
         } else if (action == "REQ") {
+          // TODO need to check Auth for kind 4
         } else if (action == "CLOSE") {
           // close filter
           return;
         } else if (action == "AUTH") {
           // check auth message
+          handleAuthMessage(conn, msgJson[1]);
           return;
         } else if (action == "COUNT") {}
 
@@ -77,5 +83,36 @@ class RelayManager {
 
       relayServer!.send(connId, nostrMsg);
     }
+  }
+
+  void handleAuthMessage(Connection conn, Map<String, dynamic> eventJson) {
+    try {
+      var event = Event.fromJson(eventJson);
+      if (event.kind == EventKind.AUTHENTICATION &&
+          event.isValid &&
+          event.isSigned) {
+        var tags = event.tags;
+        for (var tag in tags) {
+          if (tag is List && tag.length > 1) {
+            var key = tag[0];
+            var value = tag[1];
+
+            if (key == "challenge" && value == conn.authChallenge) {
+              conn.authPubkey = event.pubkey;
+              // print("auth pass!");
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  onWebSocketConnected(Connection conn) {
+    try {
+      // send auth message.
+      conn.authChallenge = StringUtil.rndNameStr(12);
+      var authMessageText = jsonEncode(["AUTH", conn.authChallenge]);
+      conn.webSocket.add(authMessageText);
+    } catch (e) {}
   }
 }
