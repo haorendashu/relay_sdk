@@ -95,7 +95,6 @@ class RelayServer {
     var conn = connections[connId];
     if (conn != null) {
       var text = jsonEncode(nostrMsg);
-      print("message send $text");
       conn.webSocket.add(text);
     }
   }

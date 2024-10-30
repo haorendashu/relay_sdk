@@ -16,7 +16,6 @@ class RelayDBWorker extends Worker with RelayLocalMixin {
 
   @override
   void onIsolateMessage(message) {
-    print(message);
     if (relayLocalDB == null) {
       return;
     }

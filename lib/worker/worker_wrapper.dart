@@ -28,7 +28,7 @@ abstract class WorkerWrapper<T> {
 
   void onIsolateMessage(message);
 
-  Function(T) getWorkerStartFunc();
+  Function(T config) getWorkerStartFunc();
 
   T genConfig();
 
