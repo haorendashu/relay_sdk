@@ -46,6 +46,7 @@ class RelayServer {
             if (onWebSocketMessage != null) {
               onWebSocketMessage!(conn, message);
             }
+            conn.onReceive();
           }, onDone: () {
             connections.remove(conn.id);
           });
@@ -100,6 +101,7 @@ class RelayServer {
     if (conn != null) {
       var text = jsonEncode(nostrMsg);
       conn.webSocket.add(text);
+      conn.onSend();
     }
   }
 }
