@@ -4,26 +4,46 @@ import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/event_kind.dart';
 import 'package:nostr_sdk/relay/relay_info.dart';
 import 'package:nostr_sdk/utils/string_util.dart';
-import 'package:relay_sdk/data/event_sign_check.dart';
-import 'package:relay_sdk/data/relay_db.dart';
-import 'package:relay_sdk/network/connection.dart';
-import 'package:relay_sdk/network/relay_server.dart';
+
+import 'data/event_filter_check.dart';
+import 'data/event_sign_check.dart';
+import 'data/relay_db.dart';
+import 'network/connection.dart';
+import 'network/relay_server.dart';
 
 class RelayManager {
+  bool openDB = true;
+
+  bool openSignCheck = true;
+
+  bool openFilterCheck = true;
+
   RelayServer? relayServer;
 
   RelayDB? relayDB;
 
   EventSignCheck? eventSignCheck;
 
-  void start() {
-    relayDB = RelayDB();
-    relayDB!.callback = onRelayDBMessage;
-    relayDB!.start();
+  EventFilterCheck? eventFilterCheck;
 
-    eventSignCheck = EventSignCheck();
-    eventSignCheck!.callback = onEventCheckMessage;
-    eventSignCheck!.start();
+  void start() {
+    if (openDB) {
+      relayDB = RelayDB();
+      relayDB!.callback = onRelayDBMessage;
+      relayDB!.start();
+    }
+
+    if (openDB) {
+      eventSignCheck = EventSignCheck();
+      eventSignCheck!.callback = onEventCheckMessage;
+      eventSignCheck!.start();
+    }
+
+    if (openFilterCheck) {
+      eventFilterCheck = EventFilterCheck();
+      eventFilterCheck!.callback = onEventFilterMessage;
+      eventFilterCheck!.start();
+    }
 
     var relayInfo = RelayInfo(
         "Local Relay",
@@ -43,7 +63,7 @@ class RelayManager {
   void onWebSocketMessage(Connection conn, message) {
     if (message is String) {
       var msgJson = jsonDecode(message);
-      if (msgJson is List && msgJson.length > 1 && relayDB != null) {
+      if (msgJson is List && msgJson.length > 1) {
         var action = msgJson[0];
         if (action == "EVENT" && eventSignCheck != null) {
           // check event sign
@@ -51,8 +71,16 @@ class RelayManager {
           return;
         } else if (action == "REQ") {
           // TODO need to check Auth for kind 4
+
+          // save req filters to eventFilterCheck
+          if (eventFilterCheck != null) {
+            eventFilterCheck!.onNostrMessage(conn.id, msgJson);
+          }
         } else if (action == "CLOSE") {
           // close filter
+          if (eventFilterCheck != null) {
+            eventFilterCheck!.onNostrMessage(conn.id, msgJson);
+          }
           return;
         } else if (action == "AUTH") {
           // check auth message
@@ -60,8 +88,17 @@ class RelayManager {
           return;
         } else if (action == "COUNT") {}
 
-        relayDB!.onNostrMessage(conn.id, msgJson);
+        onEvent(conn.id, msgJson);
       }
+    }
+  }
+
+  void onEvent(String connId, List msgJson) {
+    if (eventFilterCheck != null) {
+      eventFilterCheck!.onNostrMessage(connId, msgJson);
+    }
+    if (relayDB != null) {
+      relayDB!.onNostrMessage(connId, msgJson);
     }
   }
 
@@ -71,11 +108,22 @@ class RelayManager {
       var connId = message[1];
       var nostrMsg = message[2];
 
-      relayDB!.onNostrMessage(connId, nostrMsg);
+      onEvent(connId, nostrMsg);
     }
   }
 
   void onRelayDBMessage(message) {
+    if (message is List && message.length > 2 && relayServer != null) {
+      // var method = message[0];
+      var connId = message[1];
+      var nostrMsg = message[2];
+
+      relayServer!.send(connId, nostrMsg);
+    }
+  }
+
+  onEventFilterMessage(message) {
+    print("onEventFilterMessage");
     if (message is List && message.length > 2 && relayServer != null) {
       // var method = message[0];
       var connId = message[1];
