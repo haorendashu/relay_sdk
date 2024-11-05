@@ -47,7 +47,7 @@ class RelayManager {
     return false;
   }
 
-  void start(RelayInfo relayInfo, int port) {
+  Future<void> start(RelayInfo relayInfo, int port) async {
     if (openDB) {
       relayDB = RelayDB(rootIsolateToken!);
       relayDB!.callback = onRelayDBMessage;
@@ -73,7 +73,7 @@ class RelayManager {
     relayServer!.trafficCounter = trafficCounter;
     relayServer!.networkLogsManager = networkLogsManager;
     relayServer!.connectionListener = connectionListener;
-    relayServer!.startServer();
+    await relayServer!.startServer();
   }
 
   void onWebSocketMessage(Connection conn, message) {
