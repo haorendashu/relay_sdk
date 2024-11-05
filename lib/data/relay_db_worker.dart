@@ -1,13 +1,22 @@
+import 'package:flutter/services.dart';
+import 'package:nostr_sdk/utils/platform_util.dart';
+import 'package:nostr_sdk/utils/sqlite_util.dart';
+import 'package:relay_sdk/data/relay_db_config.dart';
+
 import '../worker/worker.dart';
 import '../worker/worker_config.dart';
 
 import 'package:nostr_sdk/relay_local/relay_local_db.dart';
 import 'package:nostr_sdk/relay_local/relay_local_mixin.dart';
 
+// import 'package:sqflite/sqflite.dart';
+// import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+// import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+
 class RelayDBWorker extends Worker with RelayLocalMixin {
   RelayDBWorker({required super.config});
 
-  static void start(WorkerConfig config) {
+  static void start(RelayDbConfig config) {
     var worker = RelayDBWorker(config: config);
     worker.doStart();
   }
@@ -45,7 +54,19 @@ class RelayDBWorker extends Worker with RelayLocalMixin {
 
   @override
   void run() async {
-    RelayLocalDB.configWindowsSqlite();
+    if (config is RelayDbConfig) {
+      BackgroundIsolateBinaryMessenger.ensureInitialized(
+          (config as RelayDbConfig).rootIsolateToken);
+    }
+    SqliteUtil.configSqliteFactory();
+    // if (PlatformUtil.isWeb()) {
+    //   databaseFactory = databaseFactoryFfiWeb;
+    // } else if (PlatformUtil.isWindowsOrLinux()) {
+    //   // Initialize FFI
+    //   sqfliteFfiInit();
+    //   // Change the default factory
+    //   databaseFactory = databaseFactoryFfi;
+    // }
     relayLocalDB = await RelayLocalDB.init();
   }
 

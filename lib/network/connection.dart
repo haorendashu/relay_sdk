@@ -1,18 +1,33 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:relay_sdk/network/statistics/network_log_item.dart';
+import 'package:relay_sdk/network/statistics/traffic.dart';
+import 'package:relay_sdk/network/statistics/traffic_counter.dart';
+
+import 'statistics/network_logs_manager.dart';
+
 class Connection {
   late String id;
 
   String ip;
 
-  WebSocket webSocket;
+  WebSocket _webSocket;
 
   String? authPubkey;
 
   String? authChallenge;
 
-  Connection(this.webSocket, this.ip) {
+  TrafficCounter? trafficCounter;
+
+  NetworkLogsManager? networkLogsManager;
+
+  Connection(
+    this._webSocket,
+    this.ip, {
+    this.trafficCounter,
+    this.networkLogsManager,
+  }) {
     id = (DateTime.now().millisecondsSinceEpoch + Random().nextInt(100000))
         .toString();
   }
@@ -34,6 +49,18 @@ class Connection {
   int get sendNum => _sendNum;
 
   DateTime? sendDate;
+
+  void send(String text) {
+    _webSocket.add(text);
+    onSend();
+
+    if (trafficCounter != null) {
+      trafficCounter!.add(id, text.length);
+    }
+    if (networkLogsManager != null) {
+      networkLogsManager!.add(id, NetworkLogItem.NETWORK_OUT, text);
+    }
+  }
 
   void onSend({DateTime? dt}) {
     _sendNum++;

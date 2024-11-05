@@ -1,9 +1,15 @@
+import 'package:flutter/services.dart';
 import 'package:relay_sdk/worker/worker_wrapper.dart';
 import 'package:relay_sdk/worker/worker_config.dart';
 
+import 'relay_db_config.dart';
 import 'relay_db_worker.dart';
 
-class RelayDB extends WorkerWrapper<WorkerConfig> {
+class RelayDB extends WorkerWrapper<RelayDbConfig> {
+  RootIsolateToken rootIsolateToken;
+
+  RelayDB(this.rootIsolateToken);
+
   Function(List<dynamic>)? callback;
 
   void onNostrMessage(String connId, List message) {
@@ -24,12 +30,13 @@ class RelayDB extends WorkerWrapper<WorkerConfig> {
   }
 
   @override
-  WorkerConfig genConfig() {
-    return WorkerConfig(sendPort: receivePort.sendPort);
+  RelayDbConfig genConfig() {
+    return RelayDbConfig(
+        rootIsolateToken: rootIsolateToken, sendPort: receivePort.sendPort);
   }
 
   @override
-  Function(WorkerConfig) getWorkerStartFunc() {
+  Function(RelayDbConfig) getWorkerStartFunc() {
     return RelayDBWorker.start;
   }
 }

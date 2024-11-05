@@ -3,6 +3,10 @@ import 'dart:io';
 
 import 'package:nostr_sdk/relay/relay_info.dart';
 import 'package:relay_sdk/network/connection.dart';
+import 'package:relay_sdk/network/statistics/network_log_item.dart';
+import 'package:relay_sdk/network/statistics/network_logs_manager.dart';
+
+import 'statistics/traffic_counter.dart';
 
 class RelayServer {
   String address;
@@ -19,27 +23,53 @@ class RelayServer {
 
   Function(Connection conn, dynamic message)? onWebSocketMessage;
 
+  Function? connectionListener;
+
+  TrafficCounter? trafficCounter;
+
+  NetworkLogsManager? networkLogsManager;
+
   RelayServer({
     this.address = "localhost",
     this.port = 8080,
     required this.relayInfo,
+    this.connectionListener,
+    this.trafficCounter,
+    this.networkLogsManager,
   });
 
+  HttpServer? server;
+
+  void stop() {
+    if (server != null) {
+      httpHandles.clear();
+      connections.clear();
+      server!.close(force: true);
+    }
+  }
+
   Future<void> startServer() async {
-    final server = await HttpServer.bind(
+    server = await HttpServer.bind(
       address,
       port,
       shared: true,
     );
     print('WebSocket server started on $address:$port');
-    server.listen((request) {
+    server!.listen((request) {
       var ip = getIpFromRequest(request);
 
       if (WebSocketTransformer.isUpgradeRequest(request)) {
         WebSocketTransformer.upgrade(request).then((webSocket) {
           webSocket.pingInterval = const Duration(seconds: 30);
-          var conn = Connection(webSocket, ip);
+          var conn = Connection(
+            webSocket,
+            ip,
+            trafficCounter: trafficCounter,
+            networkLogsManager: networkLogsManager,
+          );
           connections[conn.id] = conn;
+          print("New connection ${conn.id} from $ip");
+          callConnectionListener();
 
           webSocket.listen((message) {
             // print('Received message: $message');
@@ -47,8 +77,15 @@ class RelayServer {
               onWebSocketMessage!(conn, message);
             }
             conn.onReceive();
+
+            if (networkLogsManager != null) {
+              networkLogsManager!
+                  .add(conn.id, NetworkLogItem.NETWORK_IN, message);
+            }
           }, onDone: () {
+            print("Connection ${conn.id} remove");
             connections.remove(conn.id);
+            callConnectionListener();
           });
 
           if (onWebSocketConnected != null) {
@@ -100,9 +137,18 @@ class RelayServer {
     var conn = connections[connId];
     if (conn != null) {
       var text = jsonEncode(nostrMsg);
-      conn.webSocket.add(text);
-      conn.onSend();
+      conn.send(text);
     }
+  }
+
+  void callConnectionListener() {
+    if (connectionListener != null) {
+      connectionListener!();
+    }
+  }
+
+  List<Connection> getConnections() {
+    return connections.values.toList();
   }
 }
 

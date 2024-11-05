@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/event_kind.dart';
 import 'package:nostr_sdk/relay/relay_info.dart';
@@ -10,6 +11,8 @@ import 'data/event_sign_check.dart';
 import 'data/relay_db.dart';
 import 'network/connection.dart';
 import 'network/relay_server.dart';
+import 'network/statistics/network_logs_manager.dart';
+import 'network/statistics/traffic_counter.dart';
 
 class RelayManager {
   bool openDB = true;
@@ -26,9 +29,27 @@ class RelayManager {
 
   EventFilterCheck? eventFilterCheck;
 
-  void start() {
+  TrafficCounter? trafficCounter;
+
+  NetworkLogsManager? networkLogsManager;
+
+  RootIsolateToken rootIsolateToken;
+
+  Function? connectionListener;
+
+  RelayManager(this.rootIsolateToken);
+
+  bool isRunning() {
+    if (relayServer != null) {
+      return true;
+    }
+
+    return false;
+  }
+
+  void start(RelayInfo relayInfo, int port) {
     if (openDB) {
-      relayDB = RelayDB();
+      relayDB = RelayDB(rootIsolateToken!);
       relayDB!.callback = onRelayDBMessage;
       relayDB!.start();
     }
@@ -45,18 +66,13 @@ class RelayManager {
       eventFilterCheck!.start();
     }
 
-    var relayInfo = RelayInfo(
-        "Local Relay",
-        "This is a cache relay. It will cache some event.",
-        "29320975df855fe34a7b45ada2421e2c741c37c0136901fe477133a91eb18b07",
-        "29320975df855fe34a7b45ada2421e2c741c37c0136901fe477133a91eb18b07",
-        ["1", "11", "12", "16", "33", "42", "45", "50", "95"],
-        "Cache Relay",
-        "0.1.0");
     relayServer = RelayServer(relayInfo: relayInfo);
-    relayServer!.port = 4869;
+    relayServer!.port = port;
     relayServer!.onWebSocketMessage = onWebSocketMessage;
     relayServer!.onWebSocketConnected = onWebSocketConnected;
+    relayServer!.trafficCounter = trafficCounter;
+    relayServer!.networkLogsManager = networkLogsManager;
+    relayServer!.connectionListener = connectionListener;
     relayServer!.startServer();
   }
 
@@ -123,7 +139,6 @@ class RelayManager {
   }
 
   onEventFilterMessage(message) {
-    print("onEventFilterMessage");
     if (message is List && message.length > 2 && relayServer != null) {
       // var method = message[0];
       var connId = message[1];
@@ -160,7 +175,37 @@ class RelayManager {
       // send auth message.
       conn.authChallenge = StringUtil.rndNameStr(12);
       var authMessageText = jsonEncode(["AUTH", conn.authChallenge]);
-      conn.webSocket.add(authMessageText);
+      conn.send(authMessageText);
     } catch (e) {}
+  }
+
+  void stop() {
+    if (relayServer != null) {
+      relayServer!.stop();
+      relayServer = null;
+    }
+
+    if (relayDB != null) {
+      relayDB!.dispose();
+      relayDB = null;
+    }
+
+    if (eventSignCheck != null) {
+      eventSignCheck!.dispose();
+      eventSignCheck = null;
+    }
+
+    if (eventFilterCheck != null) {
+      eventFilterCheck!.dispose();
+      eventFilterCheck = null;
+    }
+  }
+
+  List<Connection> getConnections() {
+    if (relayServer != null) {
+      return relayServer!.getConnections();
+    }
+
+    return [];
   }
 }
