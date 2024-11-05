@@ -164,7 +164,7 @@ String getIpFromRequest(HttpRequest request) {
   }
 
   return request.connectionInfo != null
-      ? request.connectionInfo!.remoteAddress.toString()
+      ? request.connectionInfo!.remoteAddress.address
       : "127.0.0.1";
 }
 
