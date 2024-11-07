@@ -104,8 +104,14 @@ class RelayServer {
               return;
             }
 
-            responseIndex(request, response);
-            return;
+            var httpHandle = httpHandles[addr];
+            if (httpHandle != null) {
+              httpHandle(request, response);
+              return;
+            } else {
+              responseDefaultIndex(request, response);
+              return;
+            }
           }
 
           var httpHandle = httpHandles[addr];
@@ -126,12 +132,18 @@ class RelayServer {
     response.headers.add("Content-Type", "application/json");
     var jsonMap = relayInfo.toJson();
     response.write(jsonEncode(jsonMap));
-    response.done;
+    response.close();
   }
 
-  void responseIndex(HttpRequest request, HttpResponse response) {}
+  void responseDefaultIndex(HttpRequest request, HttpResponse response) {
+    response.write("Hello Nostr !");
+    response.close();
+  }
 
-  void response404(HttpRequest request, HttpResponse response) {}
+  void response404(HttpRequest request, HttpResponse response) {
+    response.statusCode = 404;
+    response.close();
+  }
 
   void send(connId, nostrMsg) {
     var conn = connections[connId];
