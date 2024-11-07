@@ -68,7 +68,7 @@ class RelayManager {
       eventFilterCheck!.start();
     }
 
-    relayServer = RelayServer(relayInfo: relayInfo, address: "127.0.0.1");
+    relayServer = RelayServer(relayInfo: relayInfo, address: "0.0.0.0");
     relayServer!.port = port;
     relayServer!.onWebSocketMessage = onWebSocketMessage;
     relayServer!.onWebSocketConnected = onWebSocketConnected;
