@@ -37,6 +37,8 @@ class RelayManager {
 
   Function? connectionListener;
 
+  Map<String, OnRequest> httpHandles = {};
+
   RelayManager(this.rootIsolateToken);
 
   bool isRunning() {
@@ -73,6 +75,7 @@ class RelayManager {
     relayServer!.trafficCounter = trafficCounter;
     relayServer!.networkLogsManager = networkLogsManager;
     relayServer!.connectionListener = connectionListener;
+    relayServer!.httpHandles = httpHandles;
     await relayServer!.startServer();
   }
 
