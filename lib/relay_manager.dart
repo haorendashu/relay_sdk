@@ -5,6 +5,7 @@ import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/event_kind.dart';
 import 'package:nostr_sdk/relay/relay_info.dart';
 import 'package:nostr_sdk/utils/string_util.dart';
+import 'package:relay_sdk/network/memory/mem_relay_client.dart';
 
 import 'data/event_filter_check.dart';
 import 'data/event_sign_check.dart';
@@ -51,12 +52,12 @@ class RelayManager {
 
   Future<void> start(RelayInfo relayInfo, int port) async {
     if (openDB) {
-      relayDB = RelayDB(rootIsolateToken!);
+      relayDB = RelayDB(rootIsolateToken);
       relayDB!.callback = onRelayDBMessage;
       relayDB!.start();
     }
 
-    if (openDB) {
+    if (openSignCheck) {
       eventSignCheck = EventSignCheck();
       eventSignCheck!.callback = onEventCheckMessage;
       eventSignCheck!.start();
@@ -79,36 +80,34 @@ class RelayManager {
     await relayServer!.startServer();
   }
 
-  void onWebSocketMessage(Connection conn, message) {
-    if (message is String) {
-      var msgJson = jsonDecode(message);
-      if (msgJson is List && msgJson.length > 1) {
-        var action = msgJson[0];
-        if (action == "EVENT" && eventSignCheck != null) {
-          // check event sign
-          eventSignCheck!.onNostrMessage(conn.id, msgJson);
-          return;
-        } else if (action == "REQ") {
-          // TODO need to check Auth for kind 4
+  void onWebSocketMessage(Connection conn, List message) {
+    // print(message);
+    if (message.length > 1) {
+      var action = message[0];
+      if (action == "EVENT" && eventSignCheck != null) {
+        // check event sign
+        eventSignCheck!.onNostrMessage(conn.id, message);
+        return;
+      } else if (action == "REQ") {
+        // TODO need to check Auth for kind 4
 
-          // save req filters to eventFilterCheck
-          if (eventFilterCheck != null) {
-            eventFilterCheck!.onNostrMessage(conn.id, msgJson);
-          }
-        } else if (action == "CLOSE") {
-          // close filter
-          if (eventFilterCheck != null) {
-            eventFilterCheck!.onNostrMessage(conn.id, msgJson);
-          }
-          return;
-        } else if (action == "AUTH") {
-          // check auth message
-          handleAuthMessage(conn, msgJson[1]);
-          return;
-        } else if (action == "COUNT") {}
+        // save req filters to eventFilterCheck
+        if (eventFilterCheck != null) {
+          eventFilterCheck!.onNostrMessage(conn.id, message);
+        }
+      } else if (action == "CLOSE") {
+        // close filter
+        if (eventFilterCheck != null) {
+          eventFilterCheck!.onNostrMessage(conn.id, message);
+        }
+        return;
+      } else if (action == "AUTH") {
+        // check auth message
+        handleAuthMessage(conn, message[1]);
+        return;
+      } else if (action == "COUNT") {}
 
-        onEvent(conn.id, msgJson);
-      }
+      onEvent(conn.id, message);
     }
   }
 
@@ -177,8 +176,7 @@ class RelayManager {
     try {
       // send auth message.
       conn.authChallenge = StringUtil.rndNameStr(12);
-      var authMessageText = jsonEncode(["AUTH", conn.authChallenge]);
-      conn.send(authMessageText);
+      conn.send(["AUTH", conn.authChallenge]);
     } catch (e) {}
   }
 
@@ -210,5 +208,11 @@ class RelayManager {
     }
 
     return [];
+  }
+
+  void addMemClient(MemRelayClient memRelayClient) {
+    if (relayServer != null) {
+      relayServer!.addMemClient(memRelayClient);
+    }
   }
 }

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:relay_sdk/network/memory/mem_relay_client.dart';
 import 'package:relay_sdk/network/statistics/network_log_item.dart';
 import 'package:relay_sdk/network/statistics/traffic.dart';
 import 'package:relay_sdk/network/statistics/traffic_counter.dart';
@@ -12,7 +14,9 @@ class Connection {
 
   String ip;
 
-  WebSocket _webSocket;
+  WebSocket? webSocket;
+
+  MemRelayClient? memRelayClient;
 
   String? authPubkey;
 
@@ -23,8 +27,9 @@ class Connection {
   NetworkLogsManager? networkLogsManager;
 
   Connection(
-    this._webSocket,
     this.ip, {
+    this.webSocket,
+    this.memRelayClient,
     this.trafficCounter,
     this.networkLogsManager,
   }) {
@@ -50,8 +55,14 @@ class Connection {
 
   DateTime? sendDate;
 
-  void send(String text) {
-    _webSocket.add(text);
+  void send(List message) {
+    var text = jsonEncode(message);
+    if (webSocket != null) {
+      webSocket!.add(text);
+    } else if (memRelayClient != null) {
+      memRelayClient!.onRelayToClient(message);
+    }
+
     onSend();
 
     if (trafficCounter != null) {

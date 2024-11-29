@@ -6,6 +6,7 @@ import 'package:relay_sdk/network/connection.dart';
 import 'package:relay_sdk/network/statistics/network_log_item.dart';
 import 'package:relay_sdk/network/statistics/network_logs_manager.dart';
 
+import 'memory/mem_relay_client.dart';
 import 'statistics/traffic_counter.dart';
 
 class RelayServer {
@@ -21,7 +22,7 @@ class RelayServer {
 
   Function(Connection conn)? onWebSocketConnected;
 
-  Function(Connection conn, dynamic message)? onWebSocketMessage;
+  Function(Connection conn, List message)? onWebSocketMessage;
 
   Function? connectionListener;
 
@@ -62,8 +63,8 @@ class RelayServer {
         WebSocketTransformer.upgrade(request).then((webSocket) {
           webSocket.pingInterval = const Duration(seconds: 30);
           var conn = Connection(
-            webSocket,
             ip,
+            webSocket: webSocket,
             trafficCounter: trafficCounter,
             networkLogsManager: networkLogsManager,
           );
@@ -73,8 +74,11 @@ class RelayServer {
 
           webSocket.listen((message) {
             // print('Received message: $message');
-            if (onWebSocketMessage != null) {
-              onWebSocketMessage!(conn, message);
+            if (onWebSocketMessage != null && message is String) {
+              var jsonObj = jsonDecode(message);
+              if (jsonObj is List) {
+                onWebSocketMessage!(conn, jsonObj);
+              }
             }
             conn.onReceive();
 
@@ -147,9 +151,8 @@ class RelayServer {
 
   void send(connId, nostrMsg) {
     var conn = connections[connId];
-    if (conn != null) {
-      var text = jsonEncode(nostrMsg);
-      conn.send(text);
+    if (conn != null && nostrMsg is List) {
+      conn.send(nostrMsg);
     }
   }
 
@@ -161,6 +164,30 @@ class RelayServer {
 
   List<Connection> getConnections() {
     return connections.values.toList();
+  }
+
+  void addMemClient(MemRelayClient memRelayClient) {
+    var conn = Connection("127.0.0.1", memRelayClient: memRelayClient);
+
+    connections[conn.id] = conn;
+    print("New connection ${conn.id} from Local");
+    callConnectionListener();
+
+    memRelayClient.onClientToRelay = (List message) {
+      if (onWebSocketMessage != null) {
+        onWebSocketMessage!(conn, message);
+      }
+      conn.onReceive();
+
+      if (networkLogsManager != null) {
+        networkLogsManager!
+            .add(conn.id, NetworkLogItem.NETWORK_IN, jsonEncode(message));
+      }
+    };
+
+    if (onWebSocketConnected != null) {
+      onWebSocketConnected!(conn);
+    }
   }
 }
 
