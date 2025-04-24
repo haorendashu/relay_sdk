@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:nostr_sdk/relay_local/relay_db.dart';
 import 'package:nostr_sdk/utils/platform_util.dart';
 import 'package:nostr_sdk/utils/sqlite_util.dart';
 import 'package:relay_sdk/data/relay_db_config.dart';
@@ -77,7 +78,7 @@ class RelayDBWorker extends Worker with RelayLocalMixin {
 
   // this method should only call in RelayLocalMixin, so the relayLocalDB will not be null.
   @override
-  RelayLocalDB getRelayLocalDB() {
+  RelayLocalDB getRelayDB() {
     return relayLocalDB!;
   }
 }
