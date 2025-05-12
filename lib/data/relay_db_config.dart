@@ -1,8 +1,14 @@
 import 'package:flutter/services.dart';
 import 'package:relay_sdk/worker/worker_config.dart';
 
-class RelayDbConfig extends WorkerConfig {
+class RelayDBConfig extends WorkerConfig {
   RootIsolateToken rootIsolateToken;
 
-  RelayDbConfig({required this.rootIsolateToken, required super.sendPort});
+  String appName;
+
+  RelayDBConfig({
+    required this.rootIsolateToken,
+    required super.sendPort,
+    required this.appName,
+  });
 }

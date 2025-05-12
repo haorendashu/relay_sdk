@@ -13,6 +13,8 @@ dependencies:
     sdk: flutter
   nostr_sdk:
     path: ../nostr_sdk
+  relay_isar_db:
+    path: ../relay_isar_db
 
 dev_dependencies:
   flutter_test:

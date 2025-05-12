@@ -5,10 +5,12 @@ import 'package:relay_sdk/worker/worker_config.dart';
 import 'relay_db_config.dart';
 import 'relay_db_worker.dart';
 
-class RelayDB extends WorkerWrapper<RelayDbConfig> {
+class RelayDB extends WorkerWrapper<RelayDBConfig> {
+  String appName;
+
   RootIsolateToken rootIsolateToken;
 
-  RelayDB(this.rootIsolateToken);
+  RelayDB(this.rootIsolateToken, this.appName);
 
   Function(List<dynamic>)? callback;
 
@@ -30,13 +32,15 @@ class RelayDB extends WorkerWrapper<RelayDbConfig> {
   }
 
   @override
-  RelayDbConfig genConfig() {
-    return RelayDbConfig(
-        rootIsolateToken: rootIsolateToken, sendPort: receivePort.sendPort);
+  RelayDBConfig genConfig() {
+    return RelayDBConfig(
+        rootIsolateToken: rootIsolateToken,
+        sendPort: receivePort.sendPort,
+        appName: appName);
   }
 
   @override
-  Function(RelayDbConfig) getWorkerStartFunc() {
+  Function(RelayDBConfig) getWorkerStartFunc() {
     return RelayDBWorker.start;
   }
 }

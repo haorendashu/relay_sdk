@@ -1,7 +1,9 @@
 import 'package:flutter/services.dart';
 import 'package:nostr_sdk/relay_local/relay_db.dart';
+import 'package:nostr_sdk/relay_local/relay_db_extral.dart';
 import 'package:nostr_sdk/utils/platform_util.dart';
 import 'package:nostr_sdk/utils/sqlite_util.dart';
+import 'package:relay_isar_db/relay_isar_db.dart';
 import 'package:relay_sdk/data/relay_db_config.dart';
 
 import '../worker/worker.dart';
@@ -17,12 +19,12 @@ import 'package:nostr_sdk/relay_local/relay_local_mixin.dart';
 class RelayDBWorker extends Worker with RelayLocalMixin {
   RelayDBWorker({required super.config});
 
-  static void start(RelayDbConfig config) {
+  static void start(RelayDBConfig config) {
     var worker = RelayDBWorker(config: config);
     worker.doStart();
   }
 
-  RelayLocalDB? relayLocalDB;
+  RelayDBExtral? relayLocalDB;
 
   @override
   void onIsolateMessage(message) {
@@ -55,20 +57,11 @@ class RelayDBWorker extends Worker with RelayLocalMixin {
 
   @override
   void run() async {
-    if (config is RelayDbConfig) {
+    if (config is RelayDBConfig) {
       BackgroundIsolateBinaryMessenger.ensureInitialized(
-          (config as RelayDbConfig).rootIsolateToken);
+          (config as RelayDBConfig).rootIsolateToken);
+      relayLocalDB = await RelayIsarDB.init((config as RelayDBConfig).appName);
     }
-    SqliteUtil.configSqliteFactory();
-    // if (PlatformUtil.isWeb()) {
-    //   databaseFactory = databaseFactoryFfiWeb;
-    // } else if (PlatformUtil.isWindowsOrLinux()) {
-    //   // Initialize FFI
-    //   sqfliteFfiInit();
-    //   // Change the default factory
-    //   databaseFactory = databaseFactoryFfi;
-    // }
-    relayLocalDB = await RelayLocalDB.init();
   }
 
   @override
@@ -78,7 +71,7 @@ class RelayDBWorker extends Worker with RelayLocalMixin {
 
   // this method should only call in RelayLocalMixin, so the relayLocalDB will not be null.
   @override
-  RelayLocalDB getRelayDB() {
+  RelayDBExtral getRelayDB() {
     return relayLocalDB!;
   }
 }

@@ -16,6 +16,8 @@ import 'network/statistics/network_logs_manager.dart';
 import 'network/statistics/traffic_counter.dart';
 
 class RelayManager {
+  String appName;
+
   bool openDB = true;
 
   bool openSignCheck = true;
@@ -40,7 +42,7 @@ class RelayManager {
 
   Map<String, OnRequest> httpHandles = {};
 
-  RelayManager(this.rootIsolateToken);
+  RelayManager(this.rootIsolateToken, this.appName);
 
   bool isRunning() {
     if (relayServer != null) {
@@ -52,7 +54,7 @@ class RelayManager {
 
   Future<void> start(RelayInfo relayInfo, int port) async {
     if (openDB) {
-      relayDB = RelayDB(rootIsolateToken);
+      relayDB = RelayDB(rootIsolateToken, appName);
       relayDB!.callback = onRelayDBMessage;
       relayDB!.start();
     }
