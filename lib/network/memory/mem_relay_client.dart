@@ -1,3 +1,4 @@
+import 'package:nostr_sdk/relay/client_connected.dart';
 import 'package:nostr_sdk/relay/relay.dart';
 
 class MemRelayClient extends Relay {
@@ -8,6 +9,7 @@ class MemRelayClient extends Relay {
 
   @override
   Future<bool> doConnect() async {
+    super.relayStatus.connected = ClientConneccted.CONNECTED;
     return true;
   }
 
